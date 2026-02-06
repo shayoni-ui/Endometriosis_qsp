@@ -37,22 +37,29 @@ arguments
     % IGFBPc = IGFBP3+IGFBP5 = 64.345 nanomolarity 
 
     % please check parameters2.xlsx and also 
-
-
+    % PGE2 MW : 352.465 Da = 0.352465 kDa
+    %conc = 1000pg/ml = 1ng/ml
+    %          = 1 / 352.465 * 1e3 nanomole/L = nanomolarity  
+    %          = 2.8372 nM nanomolarity
+    %When the relationship between receptor occupancy and response is linear,
+    %KD = EC50= 1nM
+    nva.EC50 = 1 %nM
+    nva.ra = 1 %1/hr
     % Steady state values
     nva.ssIGF1   = 15.6883 ;    % nM - not sure
     nva.ssIGFBP  = 80;          % nM - not sure
     nva.ssIGFBPc = 120;         % nM - not sure
     nva.ssPAPPA  = 40/200;       % PAPPA
     nva.ssPAPPA2 = 0.00132;        % PAPPA2 
-    nva.rp = 128.7343;%(0.17/24)*15e-02/1;  %colleti etal 2020 (rat values)0.17/24, divide by 7 as at homestasis tumor factor is about 7
-    nva.ra = (0.148/24)*15e-02/1; %0.148/24 % 2x growth over 6month
+    nva.ssPGE2 = 2.8372  %PGE2
+
     % Turnover rates
     nva.trIGF1   = 0.167;       % hours
     nva.trIGFBP  = 16;          % hours
     nva.trIGFBPc = 16;          % hours
     nva.trPAPPA  = 100;         % hours
     nva.trPAPPA2 = 100;         % hours
+    nva.trPGE2   = 0.15;        % hours
 
     nva.Kcat2     = 0.31 * 3600; % kcat = (0.31 +/- 0.06) /s  --> * 3600 1/h
     nva.Km2       = 0.41 * 1e3;  % km   =  0.41 +/- 0.11  uM  --> * 1e3 nM 
@@ -69,6 +76,7 @@ nva.kdegIGFBPc  = log(2)/nva.trIGFBPc ;
 nva.kdegPAPPA   = log(2)/nva.trPAPPA;
 nva.kdegPAPPA2  = log(2)/nva.trPAPPA2;
 nva.kdegIGF1    = log(2)/nva.trIGF1 ; 
+nva.kdegPGE2    = log(2)/nva.trPGE2 ;
 
 % at steady state - no mAb
 % d(IGFBP)/dt     = 0 = ksynIGFBP  - kdegIGFBP*IGFBP   - (Kcat*IGFBP*PAPPA/(Km+PAPPA))
@@ -86,7 +94,8 @@ nva.ksynIGFBPc = nva.kdegIGFBPc * nva.ssIGFBPc + r2;
 nva.ksynIGF1   = nva.kdegIGF1   * nva.ssIGF1 - r1 - r2;
 nva.ksynPAPPA  = nva.kdegPAPPA  * nva.ssPAPPA;
 nva.ksynPAPPA2 = nva.kdegPAPPA2 * nva.ssPAPPA2;
-    
+nva.ksynPGE2 = nva.kdegPGE2 * nva.ssPGE2;    
+
 nva
 r1
 r2
@@ -104,12 +113,13 @@ ed = m1.addcompartment('ED', 'Value', 1, 'Units', 'liter', 'constant', 1); % end
 ed.addspecies('IGFBP',      'Value', nva.ssIGFBP,              'Units', 'nanomolarity');
 ed.addspecies('IGFBPc',     'Value', nva.ssIGFBPc,             'Units', 'nanomolarity');
 ed.addspecies('IGF1',       'Value', nva.ssIGF1,               'Units', 'nanomolarity');
+ed.addspecies('IGF10',       'Value', nva.ssIGF1,               'Units', 'nanomolarity');
 ed.addspecies('PAPPA',      'Value', nva.ssPAPPA,              'Units', 'nanomolarity');
 ed.addspecies('PAPPA2',     'Value', nva.ssPAPPA2,             'Units', 'nanomolarity');
+ed.addspecies('PGE2',     'Value', nva.ssPGE2,             'Units', 'nanomolarity');
 ed.addspecies('totIGFBP',   'Value', nva.ssIGFBP+nva.ssIGFBPc, 'Units', 'nanomolarity');
-ed.addspecies('EC',       'Value', 31000,               'Units', 'item');
-ed.addspecies('EC0',       'Value', 31000,               'Units', 'item');
-ed.addspecies('Pain',      'Value', 1,              'Units', 'item');
+ed.addspecies('EC',   'Value', 1, 'Units', 'kcell/liter');
+ed.addspecies('EC0',   'Value', 1, 'Units', 'kcell/liter');
 % Drug : Mab
 ed.addspecies('mAb',        'Value', 0,                        'Units', 'nanomolarity');
 ed.addspecies('mAbPAPPA2',  'Value', 0,                        'Units', 'nanomolarity');
@@ -130,6 +140,9 @@ m1.addparameter('kdegPAPPA', 'Value', nva.kdegPAPPA,  'Units','1/hour');
 % PAPPA2 synthesis and degradation
 m1.addparameter('ksynPAPPA2','Value', nva.ksynPAPPA2, 'Units','nanomolarity/hour');
 m1.addparameter('kdegPAPPA2','Value', nva.kdegPAPPA2, 'Units','1/hour');
+% PGE2 synthesis and degradation
+m1.addparameter('ksynPGE2','Value', nva.ksynPGE2, 'Units','nanomolarity/hour');
+m1.addparameter('kdegPGE2','Value', nva.kdegPGE2, 'Units','1/hour');
 % Michaelis-Menten Kcat and Km parameters for PAPPAx cleavage of IGFBPx
 m1.addparameter('Kcat',      'Value', nva.Kcat,       'Units','1/hour');
 m1.addparameter('Kcat2',     'Value', nva.Kcat2,      'Units','1/hour');
@@ -137,11 +150,13 @@ m1.addparameter('Km',        'Value', nva.Km,         'Units','nanomolarity');
 m1.addparameter('Km2',       'Value', nva.Km2,        'Units','nanomolarity');
 % mAb blocking PAPAA2
 m1.addparameter('kon_mAb',    'Value', 1,              'Units','1/nanomolarity/hour');
-m1.addparameter('koff_mAb',   'Value', 1,              'Units','1/hour');
-% FOR lesion growth /apoptosis
-m1.addparameter('ra',    'Value', nva.ra,              'Units','1/hour');
-m1.addparameter('rp',   'Value', nva.rp,              'Units','item/hour');
-
+m1.addparameter('koff_mAb',   'Value', 0.1,              'Units','1/hour');
+m1.addparameter('EC50', 'Value', nva.EC50, 'Units', 'nanomolarity');
+% 
+m1.addparameter('Emax', 'Value', 1, 'Units', 'dimensionless');
+m1.addparameter('ra', 'Value', 0.14/(24)*15e-02, 'Units', '1/hour');
+m1.addparameter('rp', 'Value', 0.17/(24)*15e-02/2, 'Units', '1/hour');
+m1.addparameter('percentProliferation', 'Value', 1, 'Units', 'dimensionless','Constant',false);
 
 % add reactions
 % IGF1-BP non cleavable only by PAPPA synthesis and degradtion 
@@ -162,45 +177,44 @@ m1.addreaction('IGFBPc -> IGF1',  'ReactionRate', 'Kcat2*IGFBPc*PAPPA2/(Km2+IGFB
 % IGF1 sysnthesis and degradation
 m1.addreaction('null -> IGF1',    'ReactionRate', 'ksynIGF1',         'Name', 'IGF1 synthesis');
 m1.addreaction('IGF1  -> null',   'ReactionRate', 'kdegIGF1*IGF1',    'Name', 'IGF1 Degradation');
+% PGE2 sysnthesis and degradation
+m1.addreaction('null -> PGE2',    'ReactionRate', 'ksynPGE2',         'Name', 'PGE2 synthesis');
+m1.addreaction('PGE2  -> null',   'ReactionRate', 'kdegPGE2*PGE2',    'Name', 'PGE2 Degradation');
 % mAb binding to PAPPA2
 m1.addreaction('mAb + PAPPA2 <-> mAbPAPPA2 ', 'ReactionRate', 'kon_mAb*mAb*PAPPA2-koff_mAb*mAbPAPPA2', 'Name', 'mAb binding to PAPPA2');
-%IGF1 and tumor (EC) and pain
-m1.addparameter('EmaxIGF1',    'Value', 1.2990,              'Units','dimensionless');
-m1.addparameter('EC50IGF1',   'Value', 0.3535,              'Units','nanomolarity');
-% m1.addparameter('kel_pain', 'Value', 1, 'Units', 'dimensionless');
-m1.addparameter('hcIGF1',4.3,'Units','dimensionless');
-m1.addreaction(' null  -> EC  ', 'ReactionRate', 'rp*((1+ (EmaxIGF1 * (IGF1/EC50IGF1)^hcIGF1))/(1+  (IGF1/EC50IGF1)^hcIGF1))',...
-    'Name', 'tumor');
-m1.addreaction('EC -> null ', 'ReactionRate', 'ra*EC',...
-    'Name', 'basal apoptosisrate Endo');
+%Lesion proliferation due to excell IGF1 
 
-%reaction rate for modifiers for tumor
-m1.addparameter('EmaxIGF1pain',    'Value', 100,              'Units','dimensionless');
-m1.addparameter('EC50IGF1pain',   'Value', 56.1907,              'Units','nanomolarity');
-%pain and IGF1
-m1.addparameter('hcIGF1pain',1.3995,'Units','dimensionless');
-m1.addparameter('kpain',   'Value', 0.5,              'Units','item/hour');
-m1.addparameter('kelpain', 'Value', 1, 'Units','1/hour');
-m1.addreaction('null  -> Pain  ',...
-    'ReactionRate', 'kpain *((1+ (EmaxIGF1pain * (IGF1/EC50IGF1pain )^hcIGF1pain)))/((1+  (IGF1/EC50IGF1pain )^hcIGF1pain))',...
-     'Name', 'Pain pathway');
-m1.addreaction('Pain -> null', 'ReactionRate', 'kelpain*Pain',...
-     'Name', 'pain clearance');
+m1.addreaction(' null  -> EC  ', 'ReactionRate', 'rp*EC*(1 + (Emax * IGF1)/(EC50+ IGF1 ))',...
+     'Name', 'tumorEC');
+m1.addreaction('EC -> null ', 'ReactionRate', 'ra*EC',...
+     'Name', 'basal apoptosisrate CRPC');
+
+
+% %IGF1 and pain
+% m1.addparameter('EC50A1', 'Value', 1, 'Units', 'micromole');
+% 
+% m1.addparameter('EmaxA', 'Value', 1, 'Units', 'dimensionless');
+% m1.addparameter('kel_pain', 'Value', 1, 'Units', 'dimensionless');
+
+%reaction rate for modifiers for PAIN
+% m1.addreaction('PGE2 + EP3  -> Pain ',...
+%     'ReactionRate', 'kbasal *((1+ (EmaxA * (IGF1/EC50A1 ))))/((1+  (IGF1/EC50A1 )))',...
+%     'Name', 'Pain pathway');
+% m1.addreaction('Pain -> null', 'ReactionRate', 'kel_pain*Pain',...
+%     'Name', 'pain clearance');
 % Unbound drug
 m1.addparameter('Fup', 'Value', nva.Fup, 'Units', 'dimensionless');
 m1.addparameter('dosenM', 'Value', 0, 'Units', 'nanomolarity');
 addrule(m1, 'mAb = Fup*dosenM', 'RuleType', 'initialAssignment');
-% proliferation
-% m1.addparameter('proliferation', 'Value', 1, 'Units', 'dimensionless');
-% addrule(m1, 'proliferation = (EC-EC0)/EC0 * 100', 'RuleType', 'repeatedAssignment')
-addrule(m1, 'totIGFBP = IGFBP + IGFBPc', 'RuleType', 'repeatedAssignment');
 
+addrule(m1, 'totIGFBP = IGFBP + IGFBPc', 'RuleType', 'repeatedAssignment');
+addrule(m1, 'percentProliferation = (EC-EC0)/EC0*100', 'RuleType', 'repeatedAssignment');
 % Configure simulation property.
 cs = getconfigset(m1, 'default');
 cs.CompileOptions.UnitConversion = true;
 set(cs,'StopTime',(24*2+100)); %744
 set(cs,'TimeUnits','hour');
-cs.SolverOptions.AbsoluteTolerance = 1e-8;
+cs.SolverOptions.AbsoluteTolerance = 1e-10;
 cs.SolverOptions.RelativeTolerance = 1e-8;
 cs.SolverType = 'ode15s';
 
